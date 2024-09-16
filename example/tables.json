@@ -1,0 +1,10 @@
+[
+    {
+        "name": "Table1",
+        "fields": {
+            "id": "int;identity",
+            "name": "string",
+            "userId": "int;foreign_key{user};"
+        }
+    }
+]
