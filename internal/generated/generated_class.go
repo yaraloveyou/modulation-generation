@@ -28,9 +28,9 @@ func jsonToFields(path string) ([]models.Class, error) {
 	for _, table := range tables {
 		class := models.Class{
 			Name:     table.Name,
-			Modifier: "protected",
+			Modifier: table.Modifier,
 		}
-		class.GeneratedEntity(table)
+		class.GenerateEntity(table)
 		classes = append(classes, class)
 	}
 	return classes, nil

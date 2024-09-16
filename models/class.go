@@ -12,7 +12,7 @@ type Class struct {
 	Modifier string
 	Fields   []Field
 	Methods  []Method
-	Layer    string // Entity, Repository, Controller, Exception
+	Layers   []string // Entity, Repository, Controller, Exception
 }
 
 func (class *Class) createFields(table jsonmodels.Table) {
@@ -34,21 +34,23 @@ func (class *Class) createFields(table jsonmodels.Table) {
 
 func (class *Class) createMethods() {
 	for _, field := range class.Fields {
-		methods := field.GenerateMethods()
+		methods := field.GenerateMethods(class)
 		class.Methods = append(class.Methods, methods...)
 	}
 }
 
 func (class *Class) formationEntity(table jsonmodels.Table) {
 	class.createFields(table)
+	class.GenerateConstructor()
+	class.GenerateEmptyConstructor()
 	class.createMethods()
-	class.Layer = "Entity"
+
 }
 
 func propertyToField(key, value string) Field {
 	field := Field{
 		Name:        key,
-		Modifier:    "protected",
+		Modifier:    "private",
 		Annotations: []string{fmt.Sprintf("Column(name=\"%s\")", transform.CamelCaseToSnakeCase(key))},
 	}
 
@@ -67,20 +69,49 @@ func propertyToField(key, value string) Field {
 	return field
 }
 
-func (class *Class) GeneratedEntity(table jsonmodels.Table) {
+func (class *Class) GenerateEntity(table jsonmodels.Table) {
 	var builder strings.Builder
 	class.formationEntity(table)
-
-	fmt.Fprintf(&builder, "@%s\n", class.Layer)
+	for _, layer := range class.Layers {
+		fmt.Fprintf(&builder, "%s\n", layer)
+	}
 	fmt.Fprintf(&builder, "%s class %s implements Serializable {\n", class.Modifier, class.Name)
 	for _, field := range class.Fields {
-		fmt.Fprintf(&builder, "%s", field.GeneratedStringField())
+		fmt.Fprintf(&builder, "%s", field.GenerateStringField())
 	}
-
-	for i := 0; i < len(class.Methods); i += 2 {
-		fmt.Fprintf(&builder, "%s", class.Methods[i].GenerateStringMethods())
+	for i := 0; i < len(class.Methods); i++ {
+		fmt.Fprintf(&builder, "%s", class.Methods[i].GenerateStringMethod())
 	}
-	fmt.Fprintf(&builder, "}")
+	fmt.Fprintf(&builder, "}\n")
 
 	fmt.Println(builder.String())
+}
+
+func (class *Class) GenerateConstructor() {
+	constructor := Method{
+		Name:      class.Name,
+		Modifier:  class.Modifier,
+		ClassName: class.Name,
+	}
+
+	for _, field := range class.Fields {
+		variable := Variable{
+			Name:     field.Name,
+			DataType: field.DataType,
+		}
+		constructor.ExternalVariables = append(constructor.ExternalVariables, variable)
+		constructor.Variables = append(constructor.Variables, variable)
+	}
+
+	class.Methods = append(class.Methods, constructor)
+}
+
+func (class *Class) GenerateEmptyConstructor() {
+	constructor := Method{
+		Name:      class.Name,
+		Modifier:  class.Modifier,
+		ClassName: class.Name,
+	}
+
+	class.Methods = append(class.Methods, constructor)
 }
