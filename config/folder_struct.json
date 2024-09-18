@@ -1,0 +1,8 @@
+{
+    "package": "test.test_project",
+    "folders": {
+        "entity": "domain",
+        "repository": "repository",
+        "controllers": "controllers"
+    }
+}

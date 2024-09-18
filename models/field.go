@@ -2,6 +2,8 @@ package models
 
 import (
 	"fmt"
+	"fois-generator/internal/enums"
+	"fois-generator/internal/utils"
 	"strings"
 )
 
@@ -12,7 +14,7 @@ type Field struct {
 	Annotations []string //@Id @GeneratedValue() @Column()
 }
 
-func (field *Field) GenerateMethods(class *Class) []Method {
+func (field *Field) GenerateGetter(class *Class) Method {
 	getter := Method{
 		Name:     fmt.Sprintf("get%s", strings.Title(field.Name)),
 		Modifier: class.Modifier,
@@ -22,13 +24,17 @@ func (field *Field) GenerateMethods(class *Class) []Method {
 				DataType: field.DataType,
 			},
 		},
-		Position: "Entity",
 		Return: Variable{
 			Name:     field.Name,
 			DataType: field.DataType,
 		},
 		ClassName: class.Name,
 	}
+
+	return getter
+}
+
+func (field *Field) GenerateSetter(class *Class) Method {
 	setter := Method{
 		Name:     fmt.Sprintf("set%s", strings.Title(field.Name)),
 		Modifier: class.Modifier,
@@ -44,24 +50,17 @@ func (field *Field) GenerateMethods(class *Class) []Method {
 				DataType: field.DataType,
 			},
 		},
-		Position: "Entity",
 		Return: Variable{
 			DataType: "void",
 		},
 		ClassName: class.Name,
 	}
 
-	return []Method{getter, setter}
+	return setter
 }
 
 func (field *Field) GenerateStringField() string {
 	var builder strings.Builder
-
-	for _, ent := range field.Annotations {
-		fmt.Fprintf(&builder, "\t@%s\n", ent)
-	}
-
-	fmt.Fprintf(&builder, "\t%s %s %s;\n\n", field.Modifier, field.DataType, field.Name)
-
-	return builder.String()
+	fmt.Fprintf(&builder, "%s %s %s;\n\n", field.Modifier, field.DataType, field.Name)
+	return utils.AddAnnotations(field.Annotations, builder.String(), enums.Field)
 }

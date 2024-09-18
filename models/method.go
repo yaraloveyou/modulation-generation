@@ -2,14 +2,17 @@ package models
 
 import (
 	"fmt"
+	"fois-generator/internal/enums"
+	"fois-generator/internal/transform"
+	"fois-generator/internal/utils"
 	"strings"
 )
 
 type Method struct {
 	Name              string
 	ClassName         string
-	Position          string
 	Modifier          string
+	Annotations       []string
 	ExternalVariables []Variable
 	Variables         []Variable
 	Return            Variable
@@ -25,6 +28,11 @@ const (
 	CONSTRUCTOR_TEMPLATE = `%s %s(%s) {
 %s
 	}`
+	TOSTRING_TEMPLATE = `%s %s %s() {
+		return String.format(
+			"%s[%s]"%s
+		);
+	}`
 )
 
 func (method *Method) determineTemplate() string {
@@ -34,6 +42,8 @@ func (method *Method) determineTemplate() string {
 		return SETTER_TEMPLATE
 	} else if strings.Contains(method.Name, method.ClassName) {
 		return CONSTRUCTOR_TEMPLATE
+	} else if strings.Contains(method.Name, "toString") {
+		return TOSTRING_TEMPLATE
 	}
 	return ""
 }
@@ -48,9 +58,12 @@ func (method *Method) GenerateStringMethod() string {
 		mtd = method.GenerateStringSetter()
 	case CONSTRUCTOR_TEMPLATE:
 		mtd = method.GenerateStringConstructors()
+	case TOSTRING_TEMPLATE:
+		mtd = method.GenerateStringToString()
 	}
+	mtd = utils.AddAnnotations(method.Annotations, mtd, enums.Method)
 
-	return fmt.Sprintf("\n\t%s\n\n", mtd)
+	return fmt.Sprintf("\n%s\n\n", mtd)
 }
 
 func (method *Method) GenerateStringConstructors() string {
@@ -89,5 +102,26 @@ func (method *Method) GenerateStringGetter() string {
 		method.Return.DataType,
 		method.Name,
 		method.Return.Name,
+	)
+}
+
+func (method *Method) GenerateStringToString() string {
+	var format string
+	var variables string
+	for i, v := range method.ExternalVariables {
+		format += fmt.Sprintf("%s=%s", v.Name, transform.TransformDataTypeToFormat(v.DataType))
+		variables += fmt.Sprintf(", %s", v.Name)
+		if i < len(method.ExternalVariables)-1 {
+			format += ", "
+		}
+	}
+	return fmt.Sprintf(
+		TOSTRING_TEMPLATE,
+		method.Modifier,
+		method.Return.DataType,
+		method.Name,
+		method.ClassName,
+		format,
+		variables,
 	)
 }

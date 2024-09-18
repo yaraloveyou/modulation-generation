@@ -1,9 +1,11 @@
 package transform
 
-import "strings"
+import (
+	"strings"
+)
 
-func TransformDataType(value string) string {
-	switch value {
+func TransformDataType(s string) string {
+	switch s {
 	case "int":
 		return "Integer"
 	case "string":
@@ -30,4 +32,21 @@ func CamelCaseToSnakeCase(s string) string {
 	}
 
 	return strings.ToLower(result)
+}
+
+func TransformDataTypeToFormat(s string) string {
+	switch s {
+	case "Integer":
+		return "%d"
+	case "String":
+		return "%s"
+	case "Double":
+		return "%.2f"
+	case "Boolean":
+		return "%b"
+	case "Character":
+		return "%c"
+	default:
+		return "%s"
+	}
 }

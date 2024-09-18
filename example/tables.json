@@ -1,11 +1,15 @@
-[
-    {
-        "name": "Table1",
-        "modifier": "protected",
-        "fields": {
-            "id": "int;identity",
-            "name": "string",
-            "userId": "int;foreign_key{user};"
+{
+    "Name": "test_project",
+    "Lombok": "true",
+    "Tables": [
+        {
+            "name": "Table1",
+            "modifier": "protected",
+            "fields": {
+                "id": "int;identity",
+                "name": "string",
+                "userId": "int;foreign_key{user};"
+            }
         }
-    }
-]
+    ]
+}

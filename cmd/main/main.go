@@ -1,7 +1,9 @@
 package main
 
-import "fois-generator/internal/generated"
+import (
+	"fois-generator/internal/app"
+)
 
 func main() {
-	generated.GeneratedClass()
+	app.Start()
 }
