@@ -16,4 +16,8 @@ const (
 	PostMapping              = "@PostMapping%s"
 	DeleteMapping            = "@DeleteMapping%s"
 	PutMapping               = "@PutMapping%s"
+	OneToOne                 = "@OneToOne(cascade = CascadeType.ALL)"
+	ManyToOne                = "@ManyToOne(cascade = CascadeType.ALL)"
+	OneToMany                = "@OneToMany(cascade = CascadeType.ALL, mappedBy = \"%s\")"
+	JoinColumn               = "@JoinColumn(name = \"%s\")"
 )

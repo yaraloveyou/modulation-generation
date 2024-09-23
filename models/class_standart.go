@@ -2,7 +2,6 @@ package models
 
 import (
 	"fois-generator/internal/enums"
-	jsonmodels "fois-generator/models/json_models"
 )
 
 func (class *Class) createMethods() {
@@ -13,11 +12,14 @@ func (class *Class) createMethods() {
 	}
 }
 
-func (class *Class) formationEntity(table jsonmodels.Table) {
-	class.createFields(table)
+func (class *Class) formationEntity() {
+	// Создание полей
+	// Создание конструкторов
 	class.GenerateConstructor()
 	class.GenerateEmptyConstructor()
+	// Создание метода toString()
 	class.GenerateToString()
+	// Создание геттеров и сеттеров
 	class.createMethods()
 }
 

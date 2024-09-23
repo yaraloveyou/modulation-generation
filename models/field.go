@@ -11,6 +11,7 @@ type Field struct {
 	Name        string
 	DataType    string
 	Modifier    string
+	Position    string
 	Annotations []string //@Id @GeneratedValue() @Column()
 }
 

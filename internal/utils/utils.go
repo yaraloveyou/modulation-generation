@@ -17,3 +17,13 @@ func AddAnnotations(annotations []string, str string, tabs int) string {
 	fmt.Fprintf(&builder, "%s%s", tabulation, str)
 	return builder.String()
 }
+
+func Contains(slice []string, val string) bool {
+	for _, v := range slice {
+		if strings.EqualFold(v, val) {
+			return true
+		}
+	}
+
+	return false
+}

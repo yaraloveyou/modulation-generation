@@ -3,12 +3,20 @@
     "Lombok": "true",
     "Tables": [
         {
-            "name": "Table1",
+            "name": "User",
             "modifier": "protected",
             "fields": {
                 "id": "int;identity",
                 "name": "string",
-                "userId": "int;foreign_key{user};"
+                "roleId": "int;foreign_key{role};"
+            }
+        },
+        {
+            "name": "Role",
+            "modifier": "protected",
+            "fields": {
+                "id": "int;identity",
+                "name": "string"
             }
         }
     ]

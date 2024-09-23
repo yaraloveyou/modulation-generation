@@ -12,8 +12,16 @@ import (
 	"strings"
 )
 
+var (
+	classes []*models.Class
+)
+
 func GeneratedClass() error {
 	return generateClasses("../../example/tables.json")
+}
+
+func Classes() []*models.Class {
+	return classes
 }
 
 func generateClasses(path string) error {
@@ -32,10 +40,22 @@ func generateClasses(path string) error {
 			Name:     table.Name,
 			Modifier: table.Modifier,
 		}
-		err = GeneratedFile(&class, table)
-		if err != nil {
-			return err
+		GenerateFileds(&class, table)
+		classes = append(classes, &class)
+	}
+	for _, table := range project.Tables {
+		var class *models.Class
+		for _, cl := range classes {
+			if cl.Name == table.Name {
+				class = cl
+				break
+			}
 		}
+		class.SetInfoAnyClass(classes)
+		class.AddRelaited(table)
+	}
+	for _, class := range classes {
+		GeneratedFile(class)
 	}
 	return nil
 }
@@ -74,8 +94,15 @@ func GeneratedFileSystem() error {
 	return nil
 }
 
-func GeneratedFile(class *models.Class, table jsonmodels.Table) error {
-	text := class.GenerateEntity(table)
+func GenerateFileds(class *models.Class, table jsonmodels.Table) {
+	class.CreateFields(table)
+}
+
+func GeneratedFile(class *models.Class) error {
+	// Передача информации о всех классах
+	class.SetInfoAnyClass(classes)
+	// Генерация кода Entity
+	text := class.GenerateEntity()
 	dirPath := findFullPath(class.Position)
 	fullPath := path.Join(dirPath, fmt.Sprintf("%s%s.java", class.Name, class.Position))
 

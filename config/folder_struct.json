@@ -3,6 +3,7 @@
     "folders": {
         "entity": "domain",
         "repository": "repository",
-        "controllers": "controllers"
+        "controller": "controller",
+        "service": "service.dto"
     }
 }

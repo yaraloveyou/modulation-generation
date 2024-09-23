@@ -4,21 +4,26 @@ import (
 	"strings"
 )
 
-func TransformDataType(s string) string {
-	switch s {
-	case "int":
-		return "Integer"
-	case "string":
-		return "String"
-	case "float":
-		return "Double"
-	case "bool":
-		return "Boolean"
-	case "char":
-		return "Character"
-	default:
-		return "Unknown type"
+type DataType struct {
+	FullName  string
+	Formating string
+}
+
+var (
+	dataTypes = map[string]DataType{
+		"int":    {"Integer", "%d"},
+		"string": {"String", "%s"},
+		"float":  {"Double", "%.2f"},
+		"bool":   {"Boolean", "%b"},
+		"char":   {"Character", "%c"},
 	}
+)
+
+func TransformDataType(s string) string {
+	if v, ok := dataTypes[s]; ok {
+		return v.FullName
+	}
+	return "Unknown"
 }
 
 func CamelCaseToSnakeCase(s string) string {
@@ -35,18 +40,8 @@ func CamelCaseToSnakeCase(s string) string {
 }
 
 func TransformDataTypeToFormat(s string) string {
-	switch s {
-	case "Integer":
-		return "%d"
-	case "String":
-		return "%s"
-	case "Double":
-		return "%.2f"
-	case "Boolean":
-		return "%b"
-	case "Character":
-		return "%c"
-	default:
-		return "%s"
+	if v, ok := dataTypes[s]; ok {
+		return v.Formating
 	}
+	return "%s"
 }
