@@ -9,7 +9,7 @@
                 "id": "int;identity",
                 "name": "string",
                 "email": "string",
-                "roleId": "int;foreign_key{Role}",
+                "roleId": "int;foreign_key{Role};unique",
                 "borrowedBookId": "int;foreign_key{Book}"
             }
         },

@@ -11,6 +11,7 @@ func (class *Class) EntityLombokAnnotations() {
 		return
 	}
 
+	class.Builder()
 	// class.Getter()
 	// class.Setter()
 	// class.ToString()
@@ -46,6 +47,18 @@ func (c *Class) AllArgsConstructor() {
 	c.addAnnotationAndFilterMethods(enums.AllArgsConstructor, func(m Method) bool {
 		return !(len(m.Variables) > 0 && len(m.Variables) == len(m.ExternalVariables) && c.Name == m.Name)
 	})
+}
+
+func (c *Class) RequiredArgsConstructor() {
+	c.addAnnotationAndFilterMethods(enums.RequiredArgsConstructor, func(m Method) bool { return true })
+}
+
+func (c *Class) Builder() {
+	c.addAnnotationAndFilterMethods(enums.Builder, func(m Method) bool { return true })
+}
+
+func (c *Class) EqualsAndHashCode() {
+	c.addAnnotationAndFilterMethods(enums.EqualsAndHashCode, func(m Method) bool { return true })
 }
 
 func (c *Class) addAnnotationAndFilterMethods(annotation string, filterFunc func(Method) bool) {

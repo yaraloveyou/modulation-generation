@@ -37,6 +37,7 @@ func (class *Class) AddRelated(allClasses []*Class, table jsonmodels.Table) {
 	}
 	for key, value := range fieldsMap {
 		class.addManyToOneRelation(allClasses, table.Name, key, value.(string))
+		class.addOneToOne(allClasses, table.Name, key, value.(string))
 	}
 }
 
@@ -65,6 +66,10 @@ func propertyToField(tableName, key, value string) Field {
 
 func (class *Class) addManyToOneRelation(allClasses []*Class, tableName, key, value string) {
 	if !strings.Contains(value, "foreign_key") {
+		return
+	}
+
+	if strings.Contains(value, "unique") {
 		return
 	}
 
@@ -112,6 +117,33 @@ func (class *Class) addOneToManyRelation(allClasses []*Class, tableName, key, re
 				Position:    relClass,
 			}
 			c.Fields = append(c.Fields, field)
+		}
+	}
+}
+
+func (class *Class) addOneToOne(allClasses []*Class, tableName, key, value string) {
+	if !strings.Contains(value, "unique") {
+		return
+	}
+
+	re := regexp.MustCompile(`foreign_key\{([^\}]+)\}`)
+	match := re.FindStringSubmatch(value)
+	if len(match) < 2 {
+		return
+	}
+	relatedClassNames := regexp.MustCompile(`\s*,\s*`).Split(match[1], -1)
+
+	for _, c := range allClasses {
+		if strings.EqualFold(tableName, c.Name) {
+			newField := Field{
+				Name:        strings.ToLower(relatedClassNames[0]),
+				DataType:    strings.Title(relatedClassNames[0]),
+				Modifier:    "private",
+				Annotations: []string{enums.OneToOne, enums.MapsId},
+				Position:    c.Name,
+			}
+			fmt.Println(newField)
+			c.Fields = append(c.Fields, newField)
 		}
 	}
 }
