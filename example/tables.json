@@ -1,5 +1,5 @@
 {
-    "Name": "test_project",
+    "Name": "library_system",
     "Lombok": "true",
     "Tables": [
         {
@@ -8,7 +8,9 @@
             "fields": {
                 "id": "int;identity",
                 "name": "string",
-                "roleId": "int;foreign_key{role};"
+                "email": "string",
+                "roleId": "int;foreign_key{Role}",
+                "borrowedBookId": "int;foreign_key{Book}"
             }
         },
         {
@@ -17,6 +19,39 @@
             "fields": {
                 "id": "int;identity",
                 "name": "string"
+            }
+        },
+        {
+            "name": "Book",
+            "modifier": "protected",
+            "fields": {
+                "id": "int;identity",
+                "title": "string",
+                "author": "string",
+                "publishedYear": "int",
+                "genre": "string"
+            }
+        },
+        {
+            "name": "Loan",
+            "modifier": "protected",
+            "fields": {
+                "id": "int;identity",
+                "userId": "int;foreign_key{User}",
+                "bookId": "int;foreign_key{Book}",
+                "loanDate": "date",
+                "returnDate": "date"
+            }
+        },
+        {
+            "name": "Review",
+            "modifier": "protected",
+            "fields": {
+                "id": "int;identity",
+                "bookId": "int;foreign_key{Book}",
+                "userId": "int;foreign_key{User}",
+                "rating": "int",
+                "comment": "string"
             }
         }
     ]

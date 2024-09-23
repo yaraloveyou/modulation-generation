@@ -13,13 +13,12 @@ func (class *Class) createMethods() {
 }
 
 func (class *Class) formationEntity() {
-	// Создание полей
-	// Создание конструкторов
+	// Построение конструкторов
 	class.GenerateConstructor()
 	class.GenerateEmptyConstructor()
-	// Создание метода toString()
+	// Построение метода toString()
 	class.GenerateToString()
-	// Создание геттеров и сеттеров
+	// Построение геттеров и сеттеров
 	class.createMethods()
 }
 

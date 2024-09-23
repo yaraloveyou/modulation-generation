@@ -16,35 +16,30 @@ type Class struct {
 	Fields      []Field
 	Methods     []Method
 	Position    string
-	Annotations []string // Entity, Repository, Controller, Exception
+	Annotations []string
 }
 
-// Create fields based on the table structure
 func (class *Class) CreateFields(table jsonmodels.Table) {
 	fieldsMap, ok := table.Fields.(map[string]interface{})
 	if !ok {
 		return
 	}
-
 	for key, value := range fieldsMap {
 		field := propertyToField(table.Name, key, value.(string))
 		class.Fields = append(class.Fields, field)
 	}
 }
 
-// Add relationships to the fields
-func (class *Class) AddRelated(classes []*Class, table jsonmodels.Table) {
+func (class *Class) AddRelated(allClasses []*Class, table jsonmodels.Table) {
 	fieldsMap, ok := table.Fields.(map[string]interface{})
 	if !ok {
 		return
 	}
-
 	for key, value := range fieldsMap {
-		addRelatedField(classes, table.Name, key, value.(string))
+		class.addManyToOneRelation(allClasses, table.Name, key, value.(string))
 	}
 }
 
-// Transforms table property into field
 func propertyToField(tableName, key, value string) Field {
 	field := Field{
 		Name:        key,
@@ -53,10 +48,8 @@ func propertyToField(tableName, key, value string) Field {
 		Position:    tableName,
 	}
 
-	// Split value by semicolon to handle attributes like 'int;identity'
-	values := strings.Split(value, ";")
-	for _, val := range values {
-		if transform.IsValidDataType(val) {
+	for _, val := range strings.Split(value, ";") {
+		if val != "" && strings.Contains("int|string|float|char|boolean", val) {
 			field.DataType = transform.TransformDataType(val)
 		}
 		if val == "identity" {
@@ -66,40 +59,77 @@ func propertyToField(tableName, key, value string) Field {
 			)
 		}
 	}
+
 	return field
 }
 
-// Handles relationships between classes
-func addRelatedField(classes []*Class, tableName, key, value string) {
-	field := Field{
-		Name:        key,
-		Modifier:    "private",
-		Annotations: []string{fmt.Sprintf(enums.Column, transform.CamelCaseToSnakeCase(key))},
-		Position:    tableName,
+func (class *Class) addManyToOneRelation(allClasses []*Class, tableName, key, value string) {
+	if !strings.Contains(value, "foreign_key") {
+		return
 	}
 
-	values := strings.Split(value, ";")
-	for _, val := range values {
-		if strings.HasPrefix(val, "foreign_key") {
-			handleForeignKey(classes, tableName, key, val)
+	re := regexp.MustCompile(`foreign_key\{([^\}]+)\}`)
+	match := re.FindStringSubmatch(value)
+	if len(match) < 2 {
+		return
+	}
+	relatedClassNames := regexp.MustCompile(`\s*,\s*`).Split(match[1], -1)
+	var relClass string
+
+	for _, relClassName := range relatedClassNames {
+		for _, c := range allClasses {
+			if strings.EqualFold(relClassName, c.Name) {
+				newField := Field{
+					Name:        strings.ToLower(tableName),
+					DataType:    strings.Title(tableName),
+					Modifier:    "private",
+					Annotations: []string{enums.ManyToOne},
+					Position:    c.Name,
+				}
+				c.Fields = append(c.Fields, newField)
+				relClass = c.Name
+			}
+		}
+		if relClass != "" {
+			class.addOneToManyRelation(allClasses, tableName, key, relClass)
 		}
 	}
 }
 
-func handleForeignKey(classes []*Class, tableName, key, foreignKey string) {
-	re := regexp.MustCompile(`foreign_key\{([^\}]+)\}`)
-	match := re.FindStringSubmatch(foreignKey)
-
-	relatedClasses := regexp.MustCompile(`\s*,\s*`).Split(match[1], -1)
-	for _, class := range classes {
-		if utils.Contains(relatedClasses, class.Name) {
-			class.Fields = append(class.Fields, Field{
-				Name:        strings.ToLower(class.Name),
-				DataType:    strings.Title(class.Name),
+func (class *Class) addOneToManyRelation(allClasses []*Class, tableName, key, relClass string) {
+	for _, c := range allClasses {
+		if c.Name == tableName {
+			for i, field := range c.Fields {
+				if field.Name == key {
+					c.Fields = append(c.Fields[:i], c.Fields[i+1:]...)
+				}
+			}
+			field := Field{
+				Name:        strings.ToLower(relClass),
+				DataType:    utils.List(relClass),
 				Modifier:    "private",
-				Annotations: []string{enums.ManyToOne},
-				Position:    class.Name,
-			})
+				Annotations: []string{fmt.Sprintf(enums.OneToMany, strings.ToLower(tableName))},
+				Position:    relClass,
+			}
+			c.Fields = append(c.Fields, field)
 		}
 	}
+}
+
+func (class *Class) GenerateEntity() string {
+	var builder strings.Builder
+	class.formationEntity()
+	class.EntityLombokAnnotations()
+	class.Position = "Entity"
+
+	fmt.Fprintf(&builder, "%s class %s implements Serializable {\n", class.Modifier, class.Name)
+	for _, field := range class.Fields {
+		fmt.Fprintf(&builder, "%s", field.GenerateStringField())
+	}
+	for _, method := range class.Methods {
+		fmt.Fprintf(&builder, "%s", method.GenerateStringMethod())
+	}
+	fmt.Fprintf(&builder, "}\n")
+
+	return utils.AddAnnotations(class.Annotations, builder.String(), enums.Class)
 }

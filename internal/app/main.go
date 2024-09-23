@@ -2,15 +2,15 @@ package app
 
 import (
 	"fmt"
-	"fois-generator/internal/generated"
+	"fois-generator/internal/generator"
 )
 
 func Start() {
-	err := generated.GeneratedFileSystem()
+	err := generator.GeneratedFileSystem()
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = generated.GeneratedClass()
+	err = generator.BuildProject()
 	if err != nil {
 		fmt.Println(err)
 	}
