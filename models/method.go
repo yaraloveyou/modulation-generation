@@ -5,6 +5,7 @@ import (
 	"fois-generator/internal/enums"
 	"fois-generator/internal/transform"
 	"fois-generator/internal/utils"
+	"html/template"
 	"strings"
 )
 
@@ -19,14 +20,16 @@ type Method struct {
 }
 
 const (
-	GETTER_TEMPLATE = `%s %s %s() {
-		return %s;
+	GETTER_TEMPLATE = `{{.Modifier}} {{.Return.DataType}} {{.Name}}({{StringsJoin .ExternalVariables ", "}}) {
+		return {{.Return.Name}}
 	}`
-	SETTER_TEMPLATE = `%s %s %s(%s %s) {
-		this.%s = %s;
+
+	SETTER_TEMPLATE = `{{.Modifier}} {{.Return.DataType}} {{.Name}}({{with index .Variables 0}}{{.DataType}} {{.Name}}{{end}}) {
+		this.{{with index .ExternalVariables 0}}{{.Name}}{{end}} = {{with index .Variables 0}}{{.Name}}{{end}};
 	}`
-	CONSTRUCTOR_TEMPLATE = `%s %s(%s) {
-%s
+
+	CONSTRUCTOR_TEMPLATE = `{{.Modifier}} {{.Name}}({{StringsJoin .ExternalVariables ", "}}) {
+		{{VarJoin .ExternalVariables "\n\t\t"}}	
 	}`
 	TOSTRING_TEMPLATE = `%s %s %s() {
 		return String.format(
@@ -53,11 +56,11 @@ func (method *Method) GenerateStringMethod() string {
 	var mtd string
 	switch template {
 	case GETTER_TEMPLATE:
-		mtd = method.GenerateStringGetter()
+		mtd, _ = method.GenerateStringGetter()
 	case SETTER_TEMPLATE:
-		mtd = method.GenerateStringSetter()
+		mtd, _ = method.GenerateStringSetter()
 	case CONSTRUCTOR_TEMPLATE:
-		mtd = method.GenerateStringConstructors()
+		mtd, _ = method.GenerateStringConstructors()
 	case TOSTRING_TEMPLATE:
 		mtd = method.GenerateStringToString()
 	}
@@ -66,43 +69,81 @@ func (method *Method) GenerateStringMethod() string {
 	return fmt.Sprintf("\n%s\n\n", mtd)
 }
 
-func (method *Method) GenerateStringConstructors() string {
-	var builder strings.Builder
-	var params string
-	var eq string
-	for i, param := range method.Variables {
-		params += fmt.Sprintf("%s %s", param.DataType, param.Name)
-		eq += fmt.Sprintf("\t\tthis.%s = %s;", param.Name, param.Name)
-		if i < len(method.Variables)-1 {
-			params += ", "
-			eq += "\n"
-		}
+func (method *Method) GenerateStringConstructors() (string, error) {
+	t, err := template.New("constructor").Funcs(template.FuncMap{
+		"StringsJoin": func(variables []Variable, sep string) string {
+			var res []string
+			var builder strings.Builder
+			for _, v := range variables {
+				fmt.Fprintf(&builder, "%s %s", v.DataType, v.Name)
+				res = append(res, builder.String())
+				builder.Reset()
+			}
+			return strings.Join(res, sep)
+		},
+		"VarJoin": func(variables []Variable, sep string) string {
+			var res []string
+			var builder strings.Builder
+			for _, v := range variables {
+				fmt.Fprintf(&builder, "this.%s = %s;", v.Name, v.Name)
+				res = append(res, builder.String())
+				builder.Reset()
+			}
+			return strings.Join(res, sep)
+		},
+	}).Parse(CONSTRUCTOR_TEMPLATE)
+	if err != nil {
+		return "", err
 	}
-	fmt.Fprintf(&builder, CONSTRUCTOR_TEMPLATE, method.Modifier, method.Name, params, eq)
-	return builder.String()
+
+	var builder strings.Builder
+	err = t.Execute(&builder, method)
+	if err != nil {
+		return "", err
+	}
+
+	return builder.String(), nil
 }
 
-func (method *Method) GenerateStringSetter() string {
-	return fmt.Sprintf(
-		SETTER_TEMPLATE,
-		method.Modifier,
-		method.Return.DataType,
-		method.Name,
-		method.Variables[0].DataType,
-		method.Variables[0].Name,
-		method.ExternalVariables[0].Name,
-		method.Variables[0].Name,
-	)
+func (method *Method) GenerateStringSetter() (string, error) {
+	t, err := template.New("setter").Parse(SETTER_TEMPLATE)
+	if err != nil {
+		return "", err
+	}
+
+	var builder strings.Builder
+	err = t.Execute(&builder, method)
+	if err != nil {
+		return "", err
+	}
+
+	return builder.String(), nil
 }
 
-func (method *Method) GenerateStringGetter() string {
-	return fmt.Sprintf(
-		GETTER_TEMPLATE,
-		method.Modifier,
-		method.Return.DataType,
-		method.Name,
-		method.Return.Name,
-	)
+func (method *Method) GenerateStringGetter() (string, error) {
+	t, err := template.New("getter").Funcs(template.FuncMap{
+		"StringsJoin": func(variables []Variable, sep string) string {
+			var res []string
+			var builder strings.Builder
+			for _, v := range variables {
+				fmt.Fprintf(&builder, "%s %s", v.DataType, v.Name)
+				res = append(res, builder.String())
+				builder.Reset()
+			}
+			return strings.Join(res, sep)
+		},
+	}).Parse(GETTER_TEMPLATE)
+	if err != nil {
+		return "", err
+	}
+
+	var builder strings.Builder
+	err = t.Execute(&builder, method)
+	if err != nil {
+		return "", err
+	}
+
+	return builder.String(), nil
 }
 
 func (method *Method) GenerateStringToString() string {

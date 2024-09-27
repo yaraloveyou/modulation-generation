@@ -9,8 +9,7 @@
                 "id": "int;identity",
                 "name": "string",
                 "email": "string",
-                "roleId": "int;foreign_key{Role};unique",
-                "borrowedBookId": "int;foreign_key{Book}"
+                "roleId": "int;foreign_key{Role};"
             }
         },
         {
@@ -39,8 +38,8 @@
                 "id": "int;identity",
                 "userId": "int;foreign_key{User}",
                 "bookId": "int;foreign_key{Book}",
-                "loanDate": "date",
-                "returnDate": "date"
+                "loanDate": "string",
+                "returnDate": "string"
             }
         },
         {
