@@ -11,7 +11,7 @@ func (class *Class) EntityLombokAnnotations() {
 		return
 	}
 
-	class.Builder()
+	// class.Builder()
 	// class.Getter()
 	// class.Setter()
 	// class.ToString()
