@@ -37,7 +37,7 @@ func (class *Class) AddRelated(allClasses []*Class, table jsonmodels.Table) {
 	}
 	for key, value := range fieldsMap {
 		class.addManyToOneRelation(allClasses, table.Name, key, value.(string))
-		class.addOneToOne(allClasses, table.Name, key, value.(string))
+		class.addOneToOne(allClasses, table.Name, value.(string))
 	}
 }
 
@@ -121,7 +121,7 @@ func (class *Class) addOneToManyRelation(allClasses []*Class, tableName, key, re
 	}
 }
 
-func (class *Class) addOneToOne(allClasses []*Class, tableName, key, value string) {
+func (class *Class) addOneToOne(allClasses []*Class, tableName, value string) {
 	if !strings.Contains(value, "unique") {
 		return
 	}
@@ -159,9 +159,13 @@ func (class *Class) GenerateEntity() string {
 		fmt.Fprintf(&builder, "%s", field.GenerateStringField())
 	}
 	for _, method := range class.Methods {
-		fmt.Fprintf(&builder, "%s", method.GenerateStringMethod())
+		mtd, err := method.GenerateStringMethod()
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Fprintf(&builder, "%s", mtd)
 	}
-	fmt.Fprintf(&builder, "}\n")
+	fmt.Fprintf(&builder, "}")
 
 	return utils.AddAnnotations(class.Annotations, builder.String(), enums.Class)
 }

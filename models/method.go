@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"fois-generator/internal/enums"
+	"fois-generator/internal/templates"
 	"fois-generator/internal/transform"
 	"fois-generator/internal/utils"
 	"html/template"
@@ -19,120 +20,72 @@ type Method struct {
 	Return            Variable
 }
 
-const (
-	GETTER_TEMPLATE = `{{.Modifier}} {{.Return.DataType}} {{.Name}}({{StringsJoin .ExternalVariables ", "}}) {
-		return {{.Return.Name}}
-	}`
-
-	SETTER_TEMPLATE = `{{.Modifier}} {{.Return.DataType}} {{.Name}}({{with index .Variables 0}}{{.DataType}} {{.Name}}{{end}}) {
-		this.{{with index .ExternalVariables 0}}{{.Name}}{{end}} = {{with index .Variables 0}}{{.Name}}{{end}};
-	}`
-
-	CONSTRUCTOR_TEMPLATE = `{{.Modifier}} {{.Name}}({{StringsJoin .ExternalVariables ", "}}) {
-		{{VarJoin .ExternalVariables "\n\t\t"}}	
-	}`
-	TOSTRING_TEMPLATE = `%s %s %s() {
-		return String.format(
-			"%s[%s]"%s
-		);
-	}`
-)
-
-func (method *Method) determineTemplate() string {
-	if strings.Contains(method.Name, "get") {
-		return GETTER_TEMPLATE
-	} else if strings.Contains(method.Name, "set") {
-		return SETTER_TEMPLATE
-	} else if strings.Contains(method.Name, method.ClassName) {
-		return CONSTRUCTOR_TEMPLATE
-	} else if strings.Contains(method.Name, "toString") {
-		return TOSTRING_TEMPLATE
-	}
-	return ""
+var templateMapping = map[string]string{
+	"get":      templates.GETTER_TEMPLATE,
+	"set":      templates.SETTER_TEMPLATE,
+	"toString": templates.TOSTRING_TEMPLATE,
 }
 
-func (method *Method) GenerateStringMethod() string {
-	template := method.determineTemplate()
-	var mtd string
-	switch template {
-	case GETTER_TEMPLATE:
-		mtd, _ = method.GenerateStringGetter()
-	case SETTER_TEMPLATE:
-		mtd, _ = method.GenerateStringSetter()
-	case CONSTRUCTOR_TEMPLATE:
-		mtd, _ = method.GenerateStringConstructors()
-	case TOSTRING_TEMPLATE:
-		mtd = method.GenerateStringToString()
-	}
-	mtd = utils.AddAnnotations(method.Annotations, mtd, enums.Method)
+var generatorFunctions = map[string]func(*Method) (string, error){
+	"get":      (*Method).GenerateStringGetter,
+	"set":      (*Method).GenerateStringSetter,
+	"toString": (*Method).GenerateStringToString,
+}
 
-	return fmt.Sprintf("\n%s\n\n", mtd)
+func init() {
+	generatorFunctions["constructor"] = (*Method).GenerateStringConstructors
+}
+
+func (method *Method) determineTemplate() (string, string) {
+	for key := range templateMapping {
+		if strings.Contains(method.Name, key) {
+			return key, templateMapping[key]
+		}
+	}
+	if strings.Contains(method.Name, method.ClassName) {
+		return "constructor", templates.CONSTRUCTOR_TEMPLATE
+	}
+	return "", ""
+}
+
+func (method *Method) GenerateStringMethod() (string, error) {
+	methodType, tmpl := method.determineTemplate()
+	if tmpl == "" {
+		return "", fmt.Errorf("template not found for method: %s", method.Name)
+	}
+
+	generatorFunc, exists := generatorFunctions[methodType]
+	if !exists {
+		return "", fmt.Errorf("generation function not found for method: %s", method.Name)
+	}
+
+	result, err := generatorFunc(method)
+	if err != nil {
+		return "", err
+	}
+
+	result = utils.AddAnnotations(method.Annotations, result, enums.Method)
+	return fmt.Sprintf("\n%s\n", result), nil
 }
 
 func (method *Method) GenerateStringConstructors() (string, error) {
-	t, err := template.New("constructor").Funcs(template.FuncMap{
-		"StringsJoin": func(variables []Variable, sep string) string {
-			var res []string
-			var builder strings.Builder
-			for _, v := range variables {
-				fmt.Fprintf(&builder, "%s %s", v.DataType, v.Name)
-				res = append(res, builder.String())
-				builder.Reset()
-			}
-			return strings.Join(res, sep)
-		},
-		"VarJoin": func(variables []Variable, sep string) string {
-			var res []string
-			var builder strings.Builder
-			for _, v := range variables {
-				fmt.Fprintf(&builder, "this.%s = %s;", v.Name, v.Name)
-				res = append(res, builder.String())
-				builder.Reset()
-			}
-			return strings.Join(res, sep)
-		},
-	}).Parse(CONSTRUCTOR_TEMPLATE)
-	if err != nil {
-		return "", err
-	}
-
-	var builder strings.Builder
-	err = t.Execute(&builder, method)
-	if err != nil {
-		return "", err
-	}
-
-	return builder.String(), nil
+	return method.generateStringFromTemplate(templates.CONSTRUCTOR_TEMPLATE, funcMapConstructor)
 }
 
 func (method *Method) GenerateStringSetter() (string, error) {
-	t, err := template.New("setter").Parse(SETTER_TEMPLATE)
-	if err != nil {
-		return "", err
-	}
-
-	var builder strings.Builder
-	err = t.Execute(&builder, method)
-	if err != nil {
-		return "", err
-	}
-
-	return builder.String(), nil
+	return method.generateStringFromTemplate(templates.SETTER_TEMPLATE, nil)
 }
 
 func (method *Method) GenerateStringGetter() (string, error) {
-	t, err := template.New("getter").Funcs(template.FuncMap{
-		"StringsJoin": func(variables []Variable, sep string) string {
-			var res []string
-			var builder strings.Builder
-			for _, v := range variables {
-				fmt.Fprintf(&builder, "%s %s", v.DataType, v.Name)
-				res = append(res, builder.String())
-				builder.Reset()
-			}
-			return strings.Join(res, sep)
-		},
-	}).Parse(GETTER_TEMPLATE)
+	return method.generateStringFromTemplate(templates.GETTER_TEMPLATE, funcMapGetterSetter)
+}
+
+func (method *Method) GenerateStringToString() (string, error) {
+	return method.generateStringFromTemplate(templates.TOSTRING_TEMPLATE, funcMapToString)
+}
+
+func (method *Method) generateStringFromTemplate(tmpl string, funcMap template.FuncMap) (string, error) {
+	t, err := template.New("method").Funcs(funcMap).Parse(tmpl)
 	if err != nil {
 		return "", err
 	}
@@ -146,23 +99,58 @@ func (method *Method) GenerateStringGetter() (string, error) {
 	return builder.String(), nil
 }
 
-func (method *Method) GenerateStringToString() string {
-	var format string
-	var variables string
-	for i, v := range method.ExternalVariables {
-		format += fmt.Sprintf("%s=%s", v.Name, transform.TransformDataTypeToFormat(v.DataType))
-		variables += fmt.Sprintf(", %s", v.Name)
-		if i < len(method.ExternalVariables)-1 {
-			format += ", "
+var funcMapConstructor = template.FuncMap{
+	"StringsJoin": func(variables []Variable, sep string) string {
+		var res []string
+		var builder strings.Builder
+		for _, v := range variables {
+			fmt.Fprintf(&builder, "%s %s", v.DataType, v.Name)
+			res = append(res, builder.String())
+			builder.Reset()
 		}
-	}
-	return fmt.Sprintf(
-		TOSTRING_TEMPLATE,
-		method.Modifier,
-		method.Return.DataType,
-		method.Name,
-		method.ClassName,
-		format,
-		variables,
-	)
+		return strings.Join(res, sep)
+	},
+	"VarsJoin": func(variables []Variable, sep string) string {
+		var res []string
+		var builder strings.Builder
+		for _, v := range variables {
+			fmt.Fprintf(&builder, "this.%s = %s;", v.Name, v.Name)
+			res = append(res, builder.String())
+			builder.Reset()
+		}
+		return strings.Join(res, sep)
+	},
+}
+
+var funcMapGetterSetter = template.FuncMap{
+	"StringsJoin": func(variables []Variable, sep string) string {
+		var res []string
+		var builder strings.Builder
+		for _, v := range variables {
+			fmt.Fprintf(&builder, "%s %s", v.DataType, v.Name)
+			res = append(res, builder.String())
+			builder.Reset()
+		}
+		return strings.Join(res, sep)
+	},
+}
+
+var funcMapToString = template.FuncMap{
+	"StringsJoin": func(variables []Variable, sep string) string {
+		var res []string
+		var builder strings.Builder
+		for _, v := range variables {
+			fmt.Fprintf(&builder, "%s=%s", v.Name, transform.TransformDataTypeToFormat(v.DataType))
+			res = append(res, builder.String())
+			builder.Reset()
+		}
+		return strings.Join(res, sep)
+	},
+	"VarsJoin": func(variables []Variable, sep string) string {
+		var res []string
+		for _, v := range variables {
+			res = append(res, v.Name)
+		}
+		return strings.Join(res, sep)
+	},
 }
